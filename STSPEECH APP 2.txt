@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhumi's Interactive Workbook</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', Arial, sans-serif;
+            text-align: center;
+            background-color: #e6f7ff;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            /* Prevents pull-to-refresh on mobile */
+            overscroll-behavior-y: none; 
+        }
+        h1 {
+            color: #0059b3;
+            margin: 15px 0;
+            font-size: 28px;
+        }
+        
+        /* Container holds the image and canvas perfectly together */
+        .workspace {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 120px; /* Space for the bottom menu */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        img {
+            display: block;
+            max-width: 100vw; 
+            max-height: 80vh; /* Keeps it mostly on one screen to minimize scrolling */
+            object-fit: contain;
+        }
+
+        /* The invisible drawing layer */
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            /* Stops the browser from scrolling when she is trying to draw */
+            touch-action: none; 
+        }
+
+        /* Bottom Controls Menu */
+        .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 15px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            flex-wrap: wrap;
+        }
+        button, input[type="color"] {
+            padding: 15px 25px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+        }
+        .nav-btn {
+            background-color: #0080ff;
+            color: white;
+        }
+        .nav-btn:disabled {
+            background-color: #cccccc;
+        }
+        .tool-btn {
+            background-color: #ff4d4d;
+            color: white;
+        }
+        input[type="color"] {
+            padding: 5px;
+            height: 55px;
+            width: 70px;
+            background-color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Bhumi's "ST" Word Practice</h1>
+
+    <div class="workspace">
+        <img id="workbook-page" src="8301.png" alt="Workbook Page">
+        <canvas id="draw-layer"></canvas>
+    </div>
+
+    <div class="controls">
+        <button id="prev-btn" class="nav-btn" onclick="changePage(-1)" disabled>⬅️ Back</button>
+        
+        <input type="color" id="color-picker" value="#ff0000"> <button class="tool-btn" onclick="clearCanvas()">🗑️ Clear</button>
+        
+        <button id="next-btn" class="nav-btn" onclick="changePage(1)">Next ➡️</button>
+    </div>
+
+    <script>
+        // Array holding all of your image files locally
+        const pages = [
+            '8301.png', '8302.png', '8303.png', '8304.png', 
+            '8305.png', '8306.png', '8307.png', '8308.png', 
+            '8309.png', '8310.png'
+        ];
+        
+        let currentIndex = 0;
+        
+        // Setup Canvas and Drawing Tools
+        const imgElement = document.getElementById('workbook-page');
+        const canvas = document.getElementById('draw-layer');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('color-picker');
+        
+        let isDrawing = false;
+
+        // Resize the canvas to perfectly match the image every time a page loads
+        function resizeCanvas() {
+            canvas.width = imgElement.clientWidth;
+            canvas.height = imgElement.clientHeight;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.lineWidth = 6; // Thickness of the crayon
+        }
+
+        // Wait for image to load before sizing canvas
+        imgElement.onload = resizeCanvas;
+        window.onresize = resizeCanvas;
+
+        // Drawing Logic (Handles both Mouse and Touch)
+        function startPosition(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function endPosition() {
+            isDrawing = false;
+            ctx.beginPath(); // Resets path so next line doesn't connect to the old one
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            // Get correct coordinates whether it's a mouse or a finger
+            e.preventDefault(); 
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.strokeStyle = colorPicker.value; // Use selected color
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // Event Listeners for drawing
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', endPosition);
+
+        canvas.addEventListener('touchstart', startPosition, {passive: false});
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw, {passive: false});
+
+        // Navigation and Clearing
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function changePage(direction) {
+            currentIndex += direction;
+            imgElement.src = pages[currentIndex];
+            
+            // Clear drawing when turning the page
+            clearCanvas(); 
+
+            document.getElementById('prev-btn').disabled = currentIndex === 0;
+            document.getElementById('next-btn').disabled = currentIndex === pages.length - 1;
+            
+            window.scrollTo(0, 0); 
+        }
+    </script>
+
+</body>
+</html>
